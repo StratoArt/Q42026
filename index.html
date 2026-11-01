@@ -63,18 +63,21 @@ function unique(key,filter={}){return [...new Set(records().filter(x=>Object.ent
 function fillFilters(){
  const dr=$('drSelect'),ter=$('territorySelect');
  dr.innerHTML='<option value="">Pilih DR / FA</option>'+unique('drfa').map(x=>`<option>${esc(x)}</option>`).join('');
- ter.innerHTML='<option value="">Pilih teritori</option>'+unique('territory').map(x=>`<option>${esc(x)}</option>`).join('');
- dr.value='';ter.value='';dr.onchange=()=>{ter.value='';$('retailerSelect').disabled=true;$('search').disabled=true;populateRetailers();};
+ const fillTer=d=>{const t=unique('territory',d?{drfa:d}:{});ter.innerHTML='<option value="">Pilih teritori</option>'+t.map(x=>`<option>${esc(x)}</option>`).join('');ter.value=(mode==='r2'&&t.length===1)?t[0]:'';};
+ dr.value='';
+ if(mode==='r2'){ter.innerHTML='<option value="">Pilih DR / FA dahulu</option>';ter.disabled=true;}else{fillTer('');ter.disabled=false;}
+ dr.onchange=()=>{if(mode==='r2'){ter.disabled=!dr.value;if(dr.value)fillTer(dr.value);else ter.innerHTML='<option value="">Pilih DR / FA dahulu</option>';}populateRetailers();};
  ter.onchange=()=>{populateRetailers();};
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function populateRetailers(){
+ selected=null;inputs=[0,0,0,0,0,0,0,0];showProfile();renderInputs();
  const dr=mode==='r2'?$('drSelect').value:'';
  const ter=$('territorySelect').value;
  const sel=$('retailerSelect');
  const can=!!ter&&(mode==='r1'||!!dr);
  const list=can?records().filter(x=>x.territory===ter&&(mode==='r1'||x.drfa===dr)): [];
- sel.innerHTML='<option value="">Pilih retailer</option>'+list.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} · ${esc(x.id)}</option>`).join('');
+ sel.innerHTML=(can&&!list.length?'<option value="">Tidak ada retailer pada filter ini</option>':'<option value="">Pilih retailer</option>')+list.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} · ${esc(x.id)}</option>`).join('');
  sel.disabled=!can;$('search').disabled=!can;$('search').value='';
  $('count').textContent=can?`${list.length.toLocaleString('id-ID')} retailer pada filter ini · ${records().length.toLocaleString('id-ID')} total ${mode.toUpperCase()}`:`${records().length.toLocaleString('id-ID')} retailer terdaftar`;
  sel.onchange=()=>chooseRetailer(sel.value);
@@ -94,9 +97,9 @@ function showProfile(){
 function renderInputs(){
  const area=$('inputArea'),res=$('results');
  if(!selected){area.classList.remove('hidden');area.innerHTML='Pilih filter dan retailer untuk membuka simulasi.';res.classList.add('hidden');return;}
- area.innerHTML=`<div class="profile" style="margin-bottom:12px">${products.map((p,i)=>`<div class="inputbox"><label>${p} · poin Q4</label><input type="number" min="0" step="any" value="${inputs[i]}" data-i="${i}"></div>`).join('')}</div>
+ area.innerHTML=`<div class="profile" style="margin-bottom:12px">${products.map((p,i)=>`<div class="inputbox"><label>${p} · poin Q4</label><input type="number" min="0" step="any" value="${inputs[i]||''}" placeholder="0" data-i="${i}"></div>`).join('')}</div>
  <h3>Grup produk lainnya</h3><div class="inputs">
- ${['Group A Lainnya','Group B Total','Group C Total (Antracol)'].map((p,j)=>`<div class="inputbox"><label>${p} · poin Q4</label><input type="number" min="0" step="any" value="${inputs[j+5]}" data-i="${j+5}"></div>`).join('')}
+ ${['Group A Lainnya','Group B Total','Group C Total (Antracol)'].map((p,j)=>`<div class="inputbox"><label>${p} · poin Q4</label><input type="number" min="0" step="any" value="${inputs[j+5]||''}" placeholder="0" data-i="${j+5}"></div>`).join('')}
  </div><div class="actions"><button class="btn primary" onclick="calculate()">Hitung simulasi</button><button class="btn secondary" onclick="resetInputs()">Kosongkan input</button></div>`;
  area.querySelectorAll('input').forEach(el=>el.oninput=()=>{inputs[Number(el.dataset.i)]=Math.max(0,Number(el.value)||0);calculate();});
  calculate();
@@ -148,7 +151,7 @@ function calculate(){
  $('eligibility').className='status '+(achieved?'good':'warn');$('eligibility').textContent=status;
  const extras=mode==='r1'?[['Bonus standar Q4','Rp '+fmt(bonusStandard)],['Tambahan multiplier','Rp '+fmt(bonusFinal-bonusStandard)],['Perwakilan gathering',people],['Kompensasi bila batal','Rp '+fmt(compensation)],['Kupon undian',coupons],['Total rebound',fmt(rebound)]]:[['Bonus standar Q3','Rp '+fmt(bonusQ3)],['Bonus standar Q4','Rp '+fmt(bonusQ4)],['Bonus Q4 setelah multiplier','Rp '+fmt(achieved?bonusQ4*mult:0)],['Perwakilan gathering',people],['Kompensasi bila batal','Rp '+fmt(compensation)],['Kupon undian',coupons],['Total rebound',fmt(rebound)]];
  $('extras').innerHTML=extras.map(([a,b])=>`<div class="metric"><span>${a}</span><strong>${b}</strong></div>`).join('');
- res.classList.remove('hidden');
+ $('results').classList.remove('hidden');
 }
 function resetInputs(){inputs=[0,0,0,0,0,0,0,0];renderInputs();}
 setMode('r1');
